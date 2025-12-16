@@ -1,14 +1,14 @@
 use nalgebra::{Isometry3, Matrix6xX, Rotation3, Translation3, Unit, UnitQuaternion, Vector3};
-use numpy::{PyArray2, ToPyArray};
+use numpy::{IntoPyArray, PyArray2};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use thiserror::Error;
-use urdf_rs::{JointType, Robot, UrdfError};
+use urdf_rs::{JointType, Robot};
 
 #[derive(Debug, Error)]
 pub enum KinematicsError {
     #[error("failed to parse URDF: {0}")]
-    Parse(#[from] UrdfError),
+    Parse(#[from] urdf_rs::Error),
     #[error("link `{0}` was not found in the URDF")]
     UnknownLink(String),
     #[error("no kinematic path found from `{base}` to `{end}`")]
@@ -146,7 +146,6 @@ impl KinematicChain {
         let origin = origin_to_isometry(&joint.origin);
         let raw_axis = joint
             .axis
-            .as_ref()
             .map_or(Vector3::x(), |a| Vector3::new(a.xyz[0], a.xyz[1], a.xyz[2]));
 
         let kind = match joint.joint_type {
@@ -329,23 +328,13 @@ impl PyRobot {
     ) -> PyResult<&'py PyArray2<f64>> {
         let pose = self.inner.forward_kinematics(&joints)?;
         let matrix = pose.to_homogeneous();
-        Ok(matrix.to_pyarray(py))
+        Ok(matrix.into_pyarray(py))
     }
 
     fn jacobian<'py>(&self, py: Python<'py>, joints: Vec<f64>) -> PyResult<&'py PyArray2<f64>> {
         let jac = self.inner.jacobian(&joints)?;
-        Ok(jac.to_pyarray(py))
+        Ok(jac.into_pyarray(py))
     }
-}
-
-#[pyfunction(name = "from_urdf_file")]
-fn py_from_urdf_file(path: &str, base_link: &str, end_link: &str) -> PyResult<PyRobot> {
-    PyRobot::from_urdf_file(path, base_link, end_link)
-}
-
-#[pyfunction(name = "from_urdf_str")]
-fn py_from_urdf_str(urdf: &str, base_link: &str, end_link: &str) -> PyResult<PyRobot> {
-    PyRobot::from_urdf_str(urdf, base_link, end_link)
 }
 
 #[pymodule]
@@ -355,8 +344,15 @@ fn literobo(py: Python, m: &PyModule) -> PyResult<()> {
     m.add("BASE_LINK_KEY", "base_link")?;
     m.add("END_LINK_KEY", "end_link")?;
 
-    m.add_function(wrap_pyfunction!(py_from_urdf_file, m)?)?;
-    m.add_function(wrap_pyfunction!(py_from_urdf_str, m)?)?;
+    #[pyfn(m, "from_urdf_file")]
+    fn py_from_urdf_file(path: &str, base_link: &str, end_link: &str) -> PyResult<PyRobot> {
+        PyRobot::from_urdf_file(path, base_link, end_link)
+    }
+
+    #[pyfn(m, "from_urdf_str")]
+    fn py_from_urdf_str(urdf: &str, base_link: &str, end_link: &str) -> PyResult<PyRobot> {
+        PyRobot::from_urdf_str(urdf, base_link, end_link)
+    }
 
     let _ = py; // silence unused warning in non-extension builds
     Ok(())
