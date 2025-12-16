@@ -1,14 +1,15 @@
 use nalgebra::{Isometry3, Matrix6xX, Rotation3, Translation3, Unit, UnitQuaternion, Vector3};
-use numpy::{IntoPyArray, PyArray2};
+use numpy::{PyArray2, ToPyArray};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
 use thiserror::Error;
 use urdf_rs::{JointType, Robot};
 
 #[derive(Debug, Error)]
 pub enum KinematicsError {
     #[error("failed to parse URDF: {0}")]
-    Parse(#[from] urdf_rs::Error),
+    Parse(String),
     #[error("link `{0}` was not found in the URDF")]
     UnknownLink(String),
     #[error("no kinematic path found from `{base}` to `{end}`")]
@@ -52,7 +53,8 @@ impl KinematicChain {
         base_link: impl Into<String>,
         end_link: impl Into<String>,
     ) -> Result<Self, KinematicsError> {
-        let robot = urdf_rs::read_from_string(urdf)?;
+        let robot = urdf_rs::read_from_string(urdf)
+            .map_err(|err| KinematicsError::Parse(err.to_string()))?;
         Self::from_robot(robot, base_link, end_link)
     }
 
@@ -61,7 +63,8 @@ impl KinematicChain {
         base_link: impl Into<String>,
         end_link: impl Into<String>,
     ) -> Result<Self, KinematicsError> {
-        let robot = urdf_rs::read_file(path)?;
+        let robot =
+            urdf_rs::read_file(path).map_err(|err| KinematicsError::Parse(err.to_string()))?;
         Self::from_robot(robot, base_link, end_link)
     }
 
@@ -144,9 +147,10 @@ impl KinematicChain {
 
     fn chain_joint_from_urdf(joint: &urdf_rs::Joint) -> Result<ChainJoint, KinematicsError> {
         let origin = origin_to_isometry(&joint.origin);
-        let raw_axis = joint
-            .axis
-            .map_or(Vector3::x(), |a| Vector3::new(a.xyz[0], a.xyz[1], a.xyz[2]));
+        let raw_axis = {
+            let xyz = joint.axis.xyz;
+            Vector3::new(xyz[0], xyz[1], xyz[2])
+        };
 
         let kind = match joint.joint_type {
             JointType::Revolute | JointType::Continuous => JointKind::Revolute,
@@ -328,13 +332,23 @@ impl PyRobot {
     ) -> PyResult<&'py PyArray2<f64>> {
         let pose = self.inner.forward_kinematics(&joints)?;
         let matrix = pose.to_homogeneous();
-        Ok(matrix.into_pyarray(py))
+        Ok(matrix.to_pyarray(py))
     }
 
     fn jacobian<'py>(&self, py: Python<'py>, joints: Vec<f64>) -> PyResult<&'py PyArray2<f64>> {
         let jac = self.inner.jacobian(&joints)?;
-        Ok(jac.into_pyarray(py))
+        Ok(jac.to_pyarray(py))
     }
+}
+
+#[pyfunction(name = "from_urdf_file")]
+fn py_from_urdf_file(path: &str, base_link: &str, end_link: &str) -> PyResult<PyRobot> {
+    PyRobot::from_urdf_file(path, base_link, end_link)
+}
+
+#[pyfunction(name = "from_urdf_str")]
+fn py_from_urdf_str(urdf: &str, base_link: &str, end_link: &str) -> PyResult<PyRobot> {
+    PyRobot::from_urdf_str(urdf, base_link, end_link)
 }
 
 #[pymodule]
@@ -343,16 +357,8 @@ fn literobo(py: Python, m: &PyModule) -> PyResult<()> {
     m.add("VERSION", env!("CARGO_PKG_VERSION"))?;
     m.add("BASE_LINK_KEY", "base_link")?;
     m.add("END_LINK_KEY", "end_link")?;
-
-    #[pyfn(m, "from_urdf_file")]
-    fn py_from_urdf_file(path: &str, base_link: &str, end_link: &str) -> PyResult<PyRobot> {
-        PyRobot::from_urdf_file(path, base_link, end_link)
-    }
-
-    #[pyfn(m, "from_urdf_str")]
-    fn py_from_urdf_str(urdf: &str, base_link: &str, end_link: &str) -> PyResult<PyRobot> {
-        PyRobot::from_urdf_str(urdf, base_link, end_link)
-    }
+    m.add_function(wrap_pyfunction!(py_from_urdf_file, m)?)?;
+    m.add_function(wrap_pyfunction!(py_from_urdf_str, m)?)?;
 
     let _ = py; // silence unused warning in non-extension builds
     Ok(())
