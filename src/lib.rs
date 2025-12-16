@@ -31,8 +31,11 @@ enum JointKind {
 
 #[derive(Clone, Debug)]
 struct ChainJoint {
+     #[allow(dead_code)]
     name: String,
+     #[allow(dead_code)]
     parent: String,
+     #[allow(dead_code)]
     child: String,
     origin: Isometry3<f64>,
     axis: Vector3<f64>,
@@ -299,6 +302,7 @@ impl From<KinematicsError> for PyErr {
     }
 }
 
+#[allow(unsafe_op_in_unsafe_fn)]
 #[pyclass(name = "Robot")]
 struct PyRobot {
     inner: KinematicChain,
@@ -329,15 +333,15 @@ impl PyRobot {
         &self,
         py: Python<'py>,
         joints: Vec<f64>,
-    ) -> PyResult<&'py PyArray2<f64>> {
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
         let pose = self.inner.forward_kinematics(&joints)?;
         let matrix = pose.to_homogeneous();
-        Ok(matrix.to_pyarray(py))
+        Ok(matrix.to_pyarray_bound(py))
     }
 
-    fn jacobian<'py>(&self, py: Python<'py>, joints: Vec<f64>) -> PyResult<&'py PyArray2<f64>> {
+    fn jacobian<'py>(&self, py: Python<'py>, joints: Vec<f64>) -> PyResult<Bound<'py, PyArray2<f64>>> {
         let jac = self.inner.jacobian(&joints)?;
-        Ok(jac.to_pyarray(py))
+        Ok(jac.to_pyarray_bound(py))
     }
 }
 
@@ -352,7 +356,7 @@ fn py_from_urdf_str(urdf: &str, base_link: &str, end_link: &str) -> PyResult<PyR
 }
 
 #[pymodule]
-fn literobo(py: Python, m: &PyModule) -> PyResult<()> {
+fn literobo(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyRobot>()?;
     m.add("VERSION", env!("CARGO_PKG_VERSION"))?;
     m.add("BASE_LINK_KEY", "base_link")?;
