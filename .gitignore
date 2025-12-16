@@ -1,0 +1,15 @@
+target/
+__pycache__/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.DS_Store
+.venv/
+*.so
+*.pyd
+*.dll
+*.pyc
+build/
+dist/
+*.egg-info/
+*.lock.bak

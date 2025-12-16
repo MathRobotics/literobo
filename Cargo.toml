@@ -1,0 +1,14 @@
+[package]
+name = "literobo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nalgebra = { version = "0.32", features = ["std"] }
+numpy = { version = "0.21", features = ["nalgebra"] }
+pyo3 = { version = "0.21", features = ["extension-module", "abi3-py38"] }
+thiserror = "1"
+urdf-rs = "0.7"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
