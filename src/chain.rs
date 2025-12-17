@@ -18,6 +18,12 @@ struct JointFrame {
 }
 
 impl KinematicChain {
+    /// Build a kinematic chain from a URDF file.
+    ///
+    /// `base_link` と `end_link` を明示することで、ツリー構造の URDF から特定の
+    /// サブチェーンを切り出し、ルートと終端を決め打ちで探索します。URDF に複数
+    /// の分岐やフローティングベースがある場合でも、どのリンク間を結ぶかを
+    /// 呼び出し側で制御でき、想定外の枝を拾わないようにしています。
     pub fn from_urdf_str(
         urdf: &str,
         base_link: impl Into<String>,

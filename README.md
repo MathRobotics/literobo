@@ -25,6 +25,16 @@ println!("Pose:\n{}", pose.to_homogeneous());
 println!("Jacobian:\n{}", jacobian);
 ```
 
+### なぜ base_link / end_link を渡すのか
+
+- URDF はツリー（あるいは森）構造なので、どの枝をサブチェーンとして扱うかを
+  決める必要があります。
+- `base_link` と `end_link` を明示することで、特定のリンク間だけを探索し、他の
+  ブランチを無視して最短経路を切り出します。
+- 浮遊ベース（ワールドに固定されていないベース）やマルチエンドエフェクタなど、
+  1 つの URDF から複数のロボット構成を切り出す場合にも、呼び出し側で開始点と
+  終端を選べるため挙動が明確になります。
+
 ## Development commands
 
 Rust:
