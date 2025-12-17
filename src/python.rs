@@ -57,6 +57,11 @@ impl PyRobot {
         let jac = self.inner.jacobian(&joints)?;
         Ok(jac.to_pyarray_bound(py))
     }
+
+    fn with_links(&self, base_link: &str, end_link: &str) -> PyResult<Self> {
+        let chain = self.inner.with_links(base_link, end_link)?;
+        Ok(Self { inner: chain })
+    }
 }
 
 #[pyfunction(name = "from_urdf_file")]
