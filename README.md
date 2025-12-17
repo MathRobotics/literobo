@@ -25,15 +25,11 @@ println!("Pose:\n{}", pose.to_homogeneous());
 println!("Jacobian:\n{}", jacobian);
 ```
 
-### なぜ base_link / end_link を渡すのか
+### Why provide `base_link` / `end_link`
 
-- URDF はツリー（あるいは森）構造なので、どの枝をサブチェーンとして扱うかを
-  決める必要があります。
-- `base_link` と `end_link` を明示することで、特定のリンク間だけを探索し、他の
-  ブランチを無視して最短経路を切り出します。
-- 浮遊ベース（ワールドに固定されていないベース）やマルチエンドエフェクタなど、
-  1 つの URDF から複数のロボット構成を切り出す場合にも、呼び出し側で開始点と
-  終端を選べるため挙動が明確になります。
+- A URDF describes a tree (or forest), so the loader must know which branch to treat as the active sub-chain.
+- Explicit `base_link` and `end_link` let the library search only between those two links and ignore unrelated branches when extracting the shortest path.
+- This also clarifies behavior for floating bases or multi–end-effector robots: callers can choose different start/end pairs from one URDF to construct multiple chains as needed.
 
 ## Development commands
 
