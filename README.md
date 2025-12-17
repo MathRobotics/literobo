@@ -11,7 +11,6 @@ Lightweight kinematics utilities for URDF robots, implemented in Rust with Pytho
 ## Layout
 
 - `src/chain.rs` – core kinematics implementation
-- `src/error.rs` – error types shared between Rust and Python
 - `src/python.rs` – PyO3 bindings exposed to Python
 - `examples/` – ready-to-run assets (`planar.urdf`, `quickstart.py`)
 

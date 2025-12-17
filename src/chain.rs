@@ -1,4 +1,4 @@
-use crate::error::KinematicsError;
+use crate::KinematicsError;
 use crate::joint::{ChainJoint, JointKind, axis_unit, chain_joint_from_urdf};
 use nalgebra::{Isometry3, Matrix6xX, Translation3, UnitQuaternion, Vector3};
 use urdf_rs::Robot;

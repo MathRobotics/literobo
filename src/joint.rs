@@ -1,4 +1,4 @@
-use crate::error::KinematicsError;
+use crate::KinematicsError;
 use nalgebra::{Isometry3, Rotation3, Translation3, Unit, UnitQuaternion, Vector3};
 use urdf_rs::{Joint, JointType, Pose};
 
