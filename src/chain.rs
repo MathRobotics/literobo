@@ -9,6 +9,7 @@ pub struct KinematicChain {
     base: String,
     end: String,
     dof: usize,
+    robot: Robot,
 }
 
 struct JointFrame {
@@ -52,72 +53,28 @@ impl KinematicChain {
         let base_link = base_link.into();
         let end_link = end_link.into();
 
-        if !robot.links.iter().any(|l| l.name == base_link) {
-            return Err(KinematicsError::UnknownLink(base_link));
+        KinematicChain {
+            joints: Vec::new(),
+            base: base_link.clone(),
+            end: end_link.clone(),
+            dof: 0,
+            robot,
         }
-        if !robot.links.iter().any(|l| l.name == end_link) {
-            return Err(KinematicsError::UnknownLink(end_link));
-        }
+        .with_links(&base_link, &end_link)
+    }
 
-        let mut adjacency: std::collections::HashMap<String, Vec<&urdf_rs::Joint>> =
-            std::collections::HashMap::new();
-        for joint in &robot.joints {
-            adjacency
-                .entry(joint.parent.link.clone())
-                .or_default()
-                .push(joint);
-        }
+    pub fn with_links(&self, base: &str, end: &str) -> Result<KinematicChain, KinematicsError> {
+        let base_link = base.to_string();
+        let end_link = end.to_string();
 
-        let mut queue = std::collections::VecDeque::new();
-        queue.push_back(base_link.clone());
-        let mut predecessors: std::collections::HashMap<String, (&urdf_rs::Joint, String)> =
-            std::collections::HashMap::new();
-
-        while let Some(link) = queue.pop_front() {
-            if let Some(children) = adjacency.get(&link) {
-                for joint in children {
-                    let child = joint.child.link.clone();
-                    if predecessors.contains_key(&child) || child == base_link {
-                        continue;
-                    }
-                    predecessors.insert(child.clone(), (*joint, link.clone()));
-                    if child == end_link {
-                        break;
-                    }
-                    queue.push_back(child);
-                }
-            }
-        }
-
-        if !predecessors.contains_key(&end_link) {
-            return Err(KinematicsError::NoPath {
-                base: base_link.clone(),
-                end: end_link.clone(),
-            });
-        }
-
-        let mut chain: Vec<ChainJoint> = Vec::new();
-        let mut current = end_link.clone();
-        while current != base_link {
-            let (joint, parent) = predecessors
-                .get(&current)
-                .expect("path reconstruction requires predecessors")
-                .clone();
-            chain.push(chain_joint_from_urdf(joint)?);
-            current = parent;
-        }
-
-        chain.reverse();
-        let dof = chain
-            .iter()
-            .filter(|j| matches!(j.kind, JointKind::Prismatic | JointKind::Revolute))
-            .count();
+        let (chain, dof) = Self::extract_chain(&self.robot, &base_link, &end_link)?;
 
         Ok(KinematicChain {
             joints: chain,
             base: base_link,
             end: end_link,
             dof,
+            robot: self.robot.clone(),
         })
     }
 
@@ -216,5 +173,74 @@ impl KinematicChain {
         }
 
         Ok((current, frames))
+    }
+
+    fn extract_chain(
+        robot: &Robot,
+        base_link: &str,
+        end_link: &str,
+    ) -> Result<(Vec<ChainJoint>, usize), KinematicsError> {
+        if !robot.links.iter().any(|l| l.name == base_link) {
+            return Err(KinematicsError::UnknownLink(base_link.to_string()));
+        }
+        if !robot.links.iter().any(|l| l.name == end_link) {
+            return Err(KinematicsError::UnknownLink(end_link.to_string()));
+        }
+
+        let mut adjacency: std::collections::HashMap<String, Vec<&urdf_rs::Joint>> =
+            std::collections::HashMap::new();
+        for joint in &robot.joints {
+            adjacency
+                .entry(joint.parent.link.clone())
+                .or_default()
+                .push(joint);
+        }
+
+        let mut queue = std::collections::VecDeque::new();
+        queue.push_back(base_link.to_string());
+        let mut predecessors: std::collections::HashMap<String, (&urdf_rs::Joint, String)> =
+            std::collections::HashMap::new();
+
+        while let Some(link) = queue.pop_front() {
+            if let Some(children) = adjacency.get(&link) {
+                for joint in children {
+                    let child = joint.child.link.clone();
+                    if predecessors.contains_key(&child) || child == base_link {
+                        continue;
+                    }
+                    predecessors.insert(child.clone(), (*joint, link.clone()));
+                    if child == end_link {
+                        break;
+                    }
+                    queue.push_back(child);
+                }
+            }
+        }
+
+        if !predecessors.contains_key(end_link) {
+            return Err(KinematicsError::NoPath {
+                base: base_link.to_string(),
+                end: end_link.to_string(),
+            });
+        }
+
+        let mut chain: Vec<ChainJoint> = Vec::new();
+        let mut current = end_link.to_string();
+        while current != base_link {
+            let (joint, parent) = predecessors
+                .get(&current)
+                .expect("path reconstruction requires predecessors")
+                .clone();
+            chain.push(chain_joint_from_urdf(joint)?);
+            current = parent;
+        }
+
+        chain.reverse();
+        let dof = chain
+            .iter()
+            .filter(|j| matches!(j.kind, JointKind::Prismatic | JointKind::Revolute))
+            .count();
+
+        Ok((chain, dof))
     }
 }

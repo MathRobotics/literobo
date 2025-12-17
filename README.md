@@ -74,6 +74,11 @@ jacobian = robot.jacobian(q)
 
 print("Pose:\n", pose)
 print("Jacobian:\n", jacobian)
+
+# Re-select a subchain without reparsing the URDF
+sub = robot.with_links("base_link", "link1")
+pose_sub = sub.forward_kinematics(np.array([0.25]))
+print("Subchain pose:\n", pose_sub)
 ```
 
 To publish, run `uv build` (which delegates to `maturin` under the hood) and upload the wheel to PyPI with `uv publish`.
