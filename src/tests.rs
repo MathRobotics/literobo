@@ -52,13 +52,13 @@ fn jacobian_matches_planar_expectation() {
     let chain = KinematicChain::from_urdf_str(&urdf, "base", "tool").unwrap();
     let jac = chain.jacobian(&[0.0, 0.0]).unwrap();
 
-    assert!((jac[(0, 0)] - 0.0).abs() < 1e-8);
-    assert!((jac[(1, 0)] - 2.0).abs() < 1e-8);
-    assert!((jac[(5, 0)] - 1.0).abs() < 1e-8);
+    assert!((jac[(2, 0)] - 1.0).abs() < 1e-8);
+    assert!((jac[(3, 0)] - 0.0).abs() < 1e-8);
+    assert!((jac[(4, 0)] - 2.0).abs() < 1e-8);
 
-    assert!((jac[(0, 1)] - 0.0).abs() < 1e-8);
-    assert!((jac[(1, 1)] - 1.0).abs() < 1e-8);
-    assert!((jac[(5, 1)] - 1.0).abs() < 1e-8);
+    assert!((jac[(2, 1)] - 1.0).abs() < 1e-8);
+    assert!((jac[(3, 1)] - 0.0).abs() < 1e-8);
+    assert!((jac[(4, 1)] - 1.0).abs() < 1e-8);
 
     assert_eq!(jac.ncols(), 2);
 }

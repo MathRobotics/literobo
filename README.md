@@ -45,13 +45,12 @@ Python (using [uv](https://github.com/astral-sh/uv)):
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install maturin  # build backend
-uv pip install .        # build + install the wheel
+uv run pip install maturin  # build backend
+uv run pip install .        # build + install the wheel
 uv run python examples/quickstart.py
 ```
 
 ## Python usage
-
 The project is configured for `uv` so you can manage dependencies and builds without a virtualenv toolchain mismatch.
 
 ```bash
@@ -60,8 +59,8 @@ uv venv
 source .venv/bin/activate
 
 # Install build dependency and compile the wheel
-uv pip install maturin
-uv pip install .
+uv run pip install maturin
+uv run pip install .
 ```
 
 ```python

@@ -152,16 +152,16 @@ impl KinematicChain {
             match frame.kind {
                 JointKind::Revolute => {
                     jac.fixed_view_mut::<3, 1>(0, idx)
-                        .copy_from(&(frame.axis_world.cross(&(end_position - frame.position))));
-                    jac.fixed_view_mut::<3, 1>(3, idx)
                         .copy_from(&frame.axis_world);
+                    jac.fixed_view_mut::<3, 1>(3, idx)
+                        .copy_from(&(frame.axis_world.cross(&(end_position - frame.position))));
                     idx += 1;
                 }
                 JointKind::Prismatic => {
                     jac.fixed_view_mut::<3, 1>(0, idx)
-                        .copy_from(&frame.axis_world);
-                    jac.fixed_view_mut::<3, 1>(3, idx)
                         .copy_from(&Vector3::zeros());
+                    jac.fixed_view_mut::<3, 1>(3, idx)
+                        .copy_from(&frame.axis_world);
                     idx += 1;
                 }
                 JointKind::Fixed => {}
