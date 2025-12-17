@@ -8,6 +8,13 @@ Lightweight kinematics utilities for URDF robots, implemented in Rust with Pytho
 - Geometric Jacobian for revolute and prismatic joints.
 - Python bindings powered by [PyO3](https://pyo3.rs/) and packaged with [maturin](https://github.com/PyO3/maturin).
 
+## Layout
+
+- `src/chain.rs` – core kinematics implementation
+- `src/error.rs` – error types shared between Rust and Python
+- `src/python.rs` – PyO3 bindings exposed to Python
+- `examples/` – ready-to-run assets (`planar.urdf`, `quickstart.py`)
+
 ## Rust usage
 ```rust
 use literobo::KinematicChain;
@@ -17,6 +24,25 @@ let pose = chain.forward_kinematics(&[0.0, 0.5, -1.0])?;
 let jacobian = chain.jacobian(&[0.0, 0.5, -1.0])?;
 println!("Pose:\n{}", pose.to_homogeneous());
 println!("Jacobian:\n{}", jacobian);
+```
+
+## Development commands
+
+Rust:
+
+```bash
+cargo fmt
+cargo test
+```
+
+Python (using [uv](https://github.com/astral-sh/uv)):
+
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install maturin  # build backend
+uv pip install .        # build + install the wheel
+uv run python examples/quickstart.py
 ```
 
 ## Python usage
@@ -61,45 +87,6 @@ uv pip install maturin  # build backend
 # 2. Build & install the wheel from the checked-out source
 uv pip install .
 
-# 3. Create a tiny planar robot URDF
-cat > planar.urdf <<'URDF'
-<robot name="planar">
-  <link name="base"/>
-  <link name="link1"/>
-  <link name="link2"/>
-  <link name="tool"/>
-  <joint name="joint1" type="revolute">
-    <parent link="base"/>
-    <child link="link1"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-  </joint>
-  <joint name="joint2" type="revolute">
-    <parent link="link1"/>
-    <child link="link2"/>
-    <origin xyz="1 0 0" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-  </joint>
-  <joint name="tip" type="fixed">
-    <parent link="link2"/>
-    <child link="tool"/>
-    <origin xyz="1 0 0" rpy="0 0 0"/>
-  </joint>
-</robot>
-URDF
-
-# 4. Run a short script
-python - <<'PY'
-import numpy as np
-import literobo
-
-robot = literobo.from_urdf_file("planar.urdf", "base", "tool")
-q = np.array([0.0, 0.5])
-
-pose = robot.forward_kinematics(q)
-jac = robot.jacobian(q)
-
-print("Pose:\n", pose)
-print("Jacobian:\n", jac)
-PY
+# 3. Run the bundled sample
+uv run python examples/quickstart.py
 ```
