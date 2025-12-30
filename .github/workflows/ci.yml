@@ -20,9 +20,4 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run tests
-        run: |
-          if [ -f Cargo.lock ]; then
-            cargo test --locked
-          else
-            cargo test
-          fi
+        run: cargo test
