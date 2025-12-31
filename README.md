@@ -86,10 +86,10 @@ Below is a minimal end-to-end example you can run locally:
 # 1. Prepare environment (inside repo root)
 uv venv
 source .venv/bin/activate
-uv pip install maturin  # build backend
+uv run pip install maturin  # build backend
 
 # 2. Build & install the wheel from the checked-out source
-uv pip install .
+uv run pip install .
 
 # 3. Run the bundled sample
 uv run python examples/quickstart.py
