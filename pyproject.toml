@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 authors = [{ name = "literobo contributors" }]
 license = { text = "MIT" }
+dependencies = []
 classifiers = [
   "Programming Language :: Rust",
   "Programming Language :: Python :: 3",
@@ -18,7 +19,8 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = ["maturin"]
+dev = ["maturin", "numpy>=1.20", "pytest"]
+test = ["numpy>=1.20", "pytest"]
 
 [tool.maturin]
 bindings = "pyo3"
