@@ -1,5 +1,6 @@
 use crate::KinematicChain;
 use std::f64::consts::FRAC_PI_2;
+use std::time::Instant;
 
 fn sample_urdf() -> String {
     r#"
@@ -61,4 +62,59 @@ fn jacobian_matches_planar_expectation() {
     assert!((jac[(4, 1)] - 1.0).abs() < 1e-8);
 
     assert_eq!(jac.ncols(), 2);
+}
+
+#[test]
+fn benchmark_forward_kinematics_speed() {
+    let urdf = sample_urdf();
+    let chain = KinematicChain::from_urdf_str(&urdf, "base", "tool").unwrap();
+    let joint_states = [
+        [0.0, 0.0],
+        [FRAC_PI_2, 0.0],
+        [0.1, -0.2],
+        [1.2, 0.7],
+    ];
+    let iterations = 10_000usize;
+    let start = Instant::now();
+    let mut checksum = 0.0;
+    for idx in 0..iterations {
+        let state = joint_states[idx % joint_states.len()];
+        let pose = chain.forward_kinematics(&state).unwrap();
+        let translation = pose.translation.vector;
+        checksum += translation.x + translation.y + translation.z;
+        std::hint::black_box(checksum);
+    }
+    let elapsed = start.elapsed();
+    let per_op = elapsed.as_nanos() as f64 / iterations as f64;
+    println!(
+        "benchmark forward_kinematics: iterations={iterations}, total={:?}, ns/op={:.2}, checksum={:.6}",
+        elapsed, per_op, checksum
+    );
+}
+
+#[test]
+fn benchmark_jacobian_speed() {
+    let urdf = sample_urdf();
+    let chain = KinematicChain::from_urdf_str(&urdf, "base", "tool").unwrap();
+    let joint_states = [
+        [0.0, 0.0],
+        [FRAC_PI_2, 0.0],
+        [0.1, -0.2],
+        [1.2, 0.7],
+    ];
+    let iterations = 5_000usize;
+    let start = Instant::now();
+    let mut checksum = 0.0;
+    for idx in 0..iterations {
+        let state = joint_states[idx % joint_states.len()];
+        let jac = chain.jacobian(&state).unwrap();
+        checksum += jac[(0, 0)] + jac[(1, 0)] + jac[(2, 0)];
+        std::hint::black_box(checksum);
+    }
+    let elapsed = start.elapsed();
+    let per_op = elapsed.as_nanos() as f64 / iterations as f64;
+    println!(
+        "benchmark jacobian: iterations={iterations}, total={:?}, ns/op={:.2}, checksum={:.6}",
+        elapsed, per_op, checksum
+    );
 }

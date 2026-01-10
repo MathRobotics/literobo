@@ -30,7 +30,7 @@ jobs:
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
 
       - name: Run Rust tests
-        run: cargo test
+        run: cargo test -- --nocapture
 
       - name: Build and install Python bindings
         run: uv run --extra dev maturin develop --release
