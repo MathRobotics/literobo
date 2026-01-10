@@ -40,6 +40,16 @@ cargo fmt
 cargo test
 ```
 
+### Benchmark output (CI)
+The Rust test suite includes lightweight benchmark-style tests that print timing
+results for forward kinematics and Jacobian computations. In CI, tests run with
+`--nocapture` so the benchmark lines appear in the GitHub Actions logs. To see
+the same output locally, run:
+
+```bash
+cargo test -- --nocapture
+```
+
 Python (using [uv](https://github.com/astral-sh/uv)):
 
 ```bash
