@@ -19,6 +19,7 @@ pub struct ChainJoint {
     pub child: String,
     pub origin: Isometry3<f64>,
     pub axis: Vector3<f64>,
+    pub axis_unit: Option<Unit<Vector3<f64>>>,
     pub kind: JointKind,
 }
 
@@ -45,6 +46,10 @@ pub fn chain_joint_from_urdf(joint: &Joint) -> Result<ChainJoint, KinematicsErro
     } else {
         raw_axis
     };
+    let axis_unit = match kind {
+        JointKind::Revolute | JointKind::Prismatic => Some(Unit::new_normalize(axis)),
+        JointKind::Fixed => None,
+    };
 
     Ok(ChainJoint {
         name: joint.name.clone(),
@@ -52,12 +57,9 @@ pub fn chain_joint_from_urdf(joint: &Joint) -> Result<ChainJoint, KinematicsErro
         child: joint.child.link.clone(),
         origin,
         axis,
+        axis_unit,
         kind,
     })
-}
-
-pub fn axis_unit(axis: Vector3<f64>) -> Unit<Vector3<f64>> {
-    Unit::new_normalize(axis)
 }
 
 pub fn origin_to_isometry(origin: &Pose) -> Isometry3<f64> {

@@ -1,6 +1,6 @@
 use crate::KinematicsError;
-use crate::joint::{ChainJoint, JointKind, axis_unit, chain_joint_from_urdf};
-use nalgebra::{Isometry3, Matrix6xX, Translation3, UnitQuaternion, Vector3};
+use crate::joint::{ChainJoint, JointKind, chain_joint_from_urdf};
+use nalgebra::{Isometry3, Matrix6xX, UnitQuaternion, Vector3};
 use urdf_rs::Robot;
 
 #[derive(Clone, Debug)]
@@ -137,14 +137,12 @@ impl KinematicChain {
         &self,
         joint_positions: &[f64],
     ) -> Result<Isometry3<f64>, KinematicsError> {
-        let (pose, _) = self.compute_frames(joint_positions)?;
-        Ok(pose)
+        self.compute_end_pose(joint_positions)
     }
 
     pub fn jacobian(&self, joint_positions: &[f64]) -> Result<Matrix6xX<f64>, KinematicsError> {
         let (end_pose, frames) = self.compute_frames(joint_positions)?;
         let end_position = end_pose.translation.vector;
-
         let mut jac = Matrix6xX::zeros(self.dof);
         let mut idx = 0;
 
@@ -158,8 +156,6 @@ impl KinematicChain {
                     idx += 1;
                 }
                 JointKind::Prismatic => {
-                    jac.fixed_view_mut::<3, 1>(0, idx)
-                        .copy_from(&Vector3::zeros());
                     jac.fixed_view_mut::<3, 1>(3, idx)
                         .copy_from(&frame.axis_world);
                     idx += 1;
@@ -183,38 +179,87 @@ impl KinematicChain {
         }
 
         let mut q_iter = joint_positions.iter();
-        let mut frames = Vec::with_capacity(self.joints.len());
+        let mut frames = Vec::with_capacity(self.dof);
         let mut current = Isometry3::identity();
 
         for joint in &self.joints {
-            current = current * joint.origin;
-            let axis_world = current.rotation * joint.axis;
-            let position = current.translation.vector;
+            current.translation.vector += current.rotation * joint.origin.translation.vector;
+            current.rotation = current.rotation * joint.origin.rotation;
 
             match joint.kind {
                 JointKind::Revolute => {
                     let angle = *q_iter.next().expect("joint count already validated");
-                    let rotation = UnitQuaternion::from_axis_angle(&axis_unit(joint.axis), angle);
-                    current = current * Isometry3::from_parts(Translation3::identity(), rotation);
+                    let axis_world = current.rotation * joint.axis;
+                    let position = current.translation.vector;
+                    let rotation = UnitQuaternion::from_axis_angle(
+                        joint
+                            .axis_unit
+                            .as_ref()
+                            .expect("axis_unit present for revolute joint"),
+                        angle,
+                    );
+                    current.rotation = current.rotation * rotation;
+                    frames.push(JointFrame {
+                        position,
+                        axis_world,
+                        kind: joint.kind,
+                    });
                 }
                 JointKind::Prismatic => {
                     let displacement = *q_iter.next().expect("joint count already validated");
-                    current = current
-                        * Isometry3::from_parts(
-                            Translation3::from(joint.axis * displacement),
-                            UnitQuaternion::identity(),
-                        );
+                    let axis_world = current.rotation * joint.axis;
+                    let position = current.translation.vector;
+                    current.translation.vector += current.rotation * (joint.axis * displacement);
+                    frames.push(JointFrame {
+                        position,
+                        axis_world,
+                        kind: joint.kind,
+                    });
                 }
                 JointKind::Fixed => {}
             }
-
-            frames.push(JointFrame {
-                position,
-                axis_world,
-                kind: joint.kind,
-            });
         }
 
         Ok((current, frames))
+    }
+
+    fn compute_end_pose(
+        &self,
+        joint_positions: &[f64],
+    ) -> Result<Isometry3<f64>, KinematicsError> {
+        if joint_positions.len() != self.dof {
+            return Err(KinematicsError::StateLength {
+                expected: self.dof,
+                provided: joint_positions.len(),
+            });
+        }
+
+        let mut q_iter = joint_positions.iter();
+        let mut current = Isometry3::identity();
+
+        for joint in &self.joints {
+            current.translation.vector += current.rotation * joint.origin.translation.vector;
+            current.rotation = current.rotation * joint.origin.rotation;
+            match joint.kind {
+                JointKind::Revolute => {
+                    let angle = *q_iter.next().expect("joint count already validated");
+                    let rotation = UnitQuaternion::from_axis_angle(
+                        joint
+                            .axis_unit
+                            .as_ref()
+                            .expect("axis_unit present for revolute joint"),
+                        angle,
+                    );
+                    current.rotation = current.rotation * rotation;
+                }
+                JointKind::Prismatic => {
+                    let displacement = *q_iter.next().expect("joint count already validated");
+                    current.translation.vector += current.rotation * (joint.axis * displacement);
+                }
+                JointKind::Fixed => {}
+            }
+        }
+
+        Ok(current)
     }
 }
