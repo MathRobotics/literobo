@@ -50,6 +50,13 @@ the same output locally, run:
 cargo test -- --nocapture
 ```
 
+To capture Python benchmark output and compare runs, use the helper script:
+
+```bash
+uv run python benchmarks/python_benchmark.py --output benchmarks/python_baseline.txt
+uv run python benchmarks/python_benchmark.py --output benchmarks/python_latest.txt --compare benchmarks/python_baseline.txt
+```
+
 Python (using [uv](https://github.com/astral-sh/uv)):
 
 ```bash
