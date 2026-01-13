@@ -88,6 +88,8 @@ def main() -> None:
     q_array = np.array([0.0, 0.5])
     q_list = [0.0, 0.5]
     joints = q_list if args.list_input else q_array
+    pose_out = np.empty((4, 4), dtype=np.float64)
+    jac_out = np.empty((6, robot.dof), dtype=np.float64)
 
     print(f"Robot DOF: {robot.dof} (joints input: {'list' if args.list_input else 'numpy'})")
     lines: list[str] = []
@@ -108,6 +110,22 @@ def main() -> None:
             args.iterations,
             args.warmup,
             lambda: robot.jacobian(joints),
+        )
+    )
+    lines.append(
+        _bench(
+            "forward_kinematics_into",
+            args.iterations,
+            args.warmup,
+            lambda: robot.forward_kinematics_into(joints, pose_out),
+        )
+    )
+    lines.append(
+        _bench(
+            "jacobian_into",
+            args.iterations,
+            args.warmup,
+            lambda: robot.jacobian_into(joints, jac_out),
         )
     )
 
