@@ -1,0 +1,3 @@
+Robot DOF: 2 (joints input: numpy)
+forward_kinematics: total=0.014377s avg=0.14us
+jacobian: total=0.020461s avg=0.20us

@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "literobo"
-version = "0.1.0"
+version = "0.1.7"
 description = "Lightweight URDF kinematics (forward kinematics + Jacobian) with Rust speed and Python bindings."
 readme = "README.md"
 requires-python = ">=3.8"
