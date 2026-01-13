@@ -1,7 +1,7 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 
 use crate::{KinematicChain, KinematicsError};
-use numpy::{PyArray2, ToPyArray};
+use numpy::{PyArray2, PyReadonlyArray1, ToPyArray};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
@@ -42,9 +42,16 @@ impl PyRobot {
     fn forward_kinematics<'py>(
         &self,
         py: Python<'py>,
-        joints: Vec<f64>,
+        joints: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        let pose = self.inner.forward_kinematics(&joints)?;
+        if let Ok(joints_array) = joints.extract::<PyReadonlyArray1<f64>>() {
+            let pose = self.inner.forward_kinematics(joints_array.as_slice()?)?;
+            let matrix = pose.to_homogeneous();
+            return Ok(matrix.to_pyarray_bound(py));
+        }
+
+        let joints_vec: Vec<f64> = joints.extract()?;
+        let pose = self.inner.forward_kinematics(&joints_vec)?;
         let matrix = pose.to_homogeneous();
         Ok(matrix.to_pyarray_bound(py))
     }
@@ -52,9 +59,15 @@ impl PyRobot {
     fn jacobian<'py>(
         &self,
         py: Python<'py>,
-        joints: Vec<f64>,
+        joints: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        let jac = self.inner.jacobian(&joints)?;
+        if let Ok(joints_array) = joints.extract::<PyReadonlyArray1<f64>>() {
+            let jac = self.inner.jacobian(joints_array.as_slice()?)?;
+            return Ok(jac.to_pyarray_bound(py));
+        }
+
+        let joints_vec: Vec<f64> = joints.extract()?;
+        let jac = self.inner.jacobian(&joints_vec)?;
         Ok(jac.to_pyarray_bound(py))
     }
 }
