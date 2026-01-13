@@ -2,7 +2,7 @@
 
 use crate::{KinematicChain, KinematicsError};
 use nalgebra::Isometry3;
-use numpy::{PyArray2, PyReadonlyArray1, ToPyArray};
+use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray1, PyUntypedArrayMethods, ToPyArray};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
@@ -126,7 +126,7 @@ impl PyRobot {
     ) -> PyResult<()> {
         ensure_output_shape(out, 4, 4, "out")?;
         let pose = with_joints_slice(joints, |slice| {
-            py.allow_threads(|| self.inner.forward_kinematics(slice))
+            Ok(py.allow_threads(|| self.inner.forward_kinematics(slice))?)
         })?;
         write_pose(out, &pose);
         Ok(())
@@ -140,7 +140,7 @@ impl PyRobot {
     ) -> PyResult<()> {
         ensure_output_shape(out, 6, self.inner.dof(), "out")?;
         let jac = with_joints_slice(joints, |slice| {
-            py.allow_threads(|| self.inner.jacobian(slice))
+            Ok(py.allow_threads(|| self.inner.jacobian(slice))?)
         })?;
         for row in 0..6 {
             for col in 0..self.inner.dof() {
