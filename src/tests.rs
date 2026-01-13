@@ -68,12 +68,7 @@ fn jacobian_matches_planar_expectation() {
 fn benchmark_forward_kinematics_speed() {
     let urdf = sample_urdf();
     let chain = KinematicChain::from_urdf_str(&urdf, "base", "tool").unwrap();
-    let joint_states = [
-        [0.0, 0.0],
-        [FRAC_PI_2, 0.0],
-        [0.1, -0.2],
-        [1.2, 0.7],
-    ];
+    let joint_states = [[0.0, 0.0], [FRAC_PI_2, 0.0], [0.1, -0.2], [1.2, 0.7]];
     let iterations = 10_000usize;
     let start = Instant::now();
     let mut checksum = 0.0;
@@ -96,12 +91,7 @@ fn benchmark_forward_kinematics_speed() {
 fn benchmark_jacobian_speed() {
     let urdf = sample_urdf();
     let chain = KinematicChain::from_urdf_str(&urdf, "base", "tool").unwrap();
-    let joint_states = [
-        [0.0, 0.0],
-        [FRAC_PI_2, 0.0],
-        [0.1, -0.2],
-        [1.2, 0.7],
-    ];
+    let joint_states = [[0.0, 0.0], [FRAC_PI_2, 0.0], [0.1, -0.2], [1.2, 0.7]];
     let iterations = 5_000usize;
     let start = Instant::now();
     let mut checksum = 0.0;

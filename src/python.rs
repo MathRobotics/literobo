@@ -1,6 +1,7 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 
 use crate::{KinematicChain, KinematicsError};
+use nalgebra::Isometry3;
 use numpy::{PyArray2, PyReadonlyArray1, ToPyArray};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -9,6 +10,61 @@ use pyo3::wrap_pyfunction;
 impl From<KinematicsError> for PyErr {
     fn from(err: KinematicsError) -> Self {
         PyValueError::new_err(err.to_string())
+    }
+}
+
+fn with_joints_slice<'py, T>(
+    joints: &Bound<'py, PyAny>,
+    f: impl FnOnce(&[f64]) -> PyResult<T>,
+) -> PyResult<T> {
+    if let Ok(joints_array) = joints.extract::<PyReadonlyArray1<f64>>() {
+        return f(joints_array.as_slice()?);
+    }
+
+    let joints_vec: Vec<f64> = joints.extract()?;
+    f(&joints_vec)
+}
+
+fn ensure_output_shape(
+    out: &Bound<'_, PyArray2<f64>>,
+    rows: usize,
+    cols: usize,
+    name: &str,
+) -> PyResult<()> {
+    let shape = out.shape();
+    if shape.len() != 2 || shape[0] != rows || shape[1] != cols {
+        return Err(PyValueError::new_err(format!(
+            "{name} must have shape ({rows}, {cols}), got ({}, {})",
+            shape.get(0).copied().unwrap_or(0),
+            shape.get(1).copied().unwrap_or(0)
+        )));
+    }
+    Ok(())
+}
+
+fn write_pose(out: &Bound<'_, PyArray2<f64>>, pose: &Isometry3<f64>) {
+    let rotation = pose.rotation.to_rotation_matrix();
+    let rot = rotation.matrix();
+    let translation = pose.translation.vector;
+
+    for row in 0..3 {
+        for col in 0..3 {
+            unsafe {
+                *out.uget_mut([row, col]) = rot[(row, col)];
+            }
+        }
+        unsafe {
+            *out.uget_mut([row, 3]) = translation[row];
+        }
+    }
+
+    for col in 0..3 {
+        unsafe {
+            *out.uget_mut([3, col]) = 0.0;
+        }
+    }
+    unsafe {
+        *out.uget_mut([3, 3]) = 1.0;
     }
 }
 
@@ -44,16 +100,11 @@ impl PyRobot {
         py: Python<'py>,
         joints: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        if let Ok(joints_array) = joints.extract::<PyReadonlyArray1<f64>>() {
-            let pose = self.inner.forward_kinematics(joints_array.as_slice()?)?;
+        with_joints_slice(joints, |slice| {
+            let pose = py.allow_threads(|| self.inner.forward_kinematics(slice))?;
             let matrix = pose.to_homogeneous();
-            return Ok(matrix.to_pyarray_bound(py));
-        }
-
-        let joints_vec: Vec<f64> = joints.extract()?;
-        let pose = self.inner.forward_kinematics(&joints_vec)?;
-        let matrix = pose.to_homogeneous();
-        Ok(matrix.to_pyarray_bound(py))
+            Ok(matrix.to_pyarray_bound(py))
+        })
     }
 
     fn jacobian<'py>(
@@ -61,14 +112,44 @@ impl PyRobot {
         py: Python<'py>,
         joints: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        if let Ok(joints_array) = joints.extract::<PyReadonlyArray1<f64>>() {
-            let jac = self.inner.jacobian(joints_array.as_slice()?)?;
-            return Ok(jac.to_pyarray_bound(py));
-        }
+        with_joints_slice(joints, |slice| {
+            let jac = py.allow_threads(|| self.inner.jacobian(slice))?;
+            Ok(jac.to_pyarray_bound(py))
+        })
+    }
 
-        let joints_vec: Vec<f64> = joints.extract()?;
-        let jac = self.inner.jacobian(&joints_vec)?;
-        Ok(jac.to_pyarray_bound(py))
+    fn forward_kinematics_into<'py>(
+        &self,
+        py: Python<'py>,
+        joints: &Bound<'py, PyAny>,
+        out: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<()> {
+        ensure_output_shape(out, 4, 4, "out")?;
+        let pose = with_joints_slice(joints, |slice| {
+            py.allow_threads(|| self.inner.forward_kinematics(slice))
+        })?;
+        write_pose(out, &pose);
+        Ok(())
+    }
+
+    fn jacobian_into<'py>(
+        &self,
+        py: Python<'py>,
+        joints: &Bound<'py, PyAny>,
+        out: &Bound<'py, PyArray2<f64>>,
+    ) -> PyResult<()> {
+        ensure_output_shape(out, 6, self.inner.dof(), "out")?;
+        let jac = with_joints_slice(joints, |slice| {
+            py.allow_threads(|| self.inner.jacobian(slice))
+        })?;
+        for row in 0..6 {
+            for col in 0..self.inner.dof() {
+                unsafe {
+                    *out.uget_mut([row, col]) = jac[(row, col)];
+                }
+            }
+        }
+        Ok(())
     }
 }
 

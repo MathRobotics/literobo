@@ -223,10 +223,7 @@ impl KinematicChain {
         Ok((current, frames))
     }
 
-    fn compute_end_pose(
-        &self,
-        joint_positions: &[f64],
-    ) -> Result<Isometry3<f64>, KinematicsError> {
+    fn compute_end_pose(&self, joint_positions: &[f64]) -> Result<Isometry3<f64>, KinematicsError> {
         if joint_positions.len() != self.dof {
             return Err(KinematicsError::StateLength {
                 expected: self.dof,
