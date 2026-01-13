@@ -1,0 +1,16 @@
+
+running 4 tests
+benchmark jacobian: iterations=5000, total=64.404337ms, ns/op=12880.87, checksum=5000.000000
+test tests::benchmark_jacobian_speed ... ok
+test tests::forward_kinematics_is_correct ... ok
+test tests::jacobian_matches_planar_expectation ... ok
+benchmark forward_kinematics: iterations=10000, total=88.896017ms, ns/op=8889.60, checksum=19768.539230
+test tests::benchmark_forward_kinematics_speed ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
